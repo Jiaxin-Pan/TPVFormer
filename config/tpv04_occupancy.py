@@ -53,7 +53,7 @@ model = dict(
         scale_z=scale_z
     ),
     img_backbone=dict(
-        type='ResNet',
+        type='ResNet', # https://mmsegmentation.readthedocs.io/en/latest/_modules/mmseg/models/backbones/resnet.html?highlight=resnet#
         depth=101,
         num_stages=4,
         out_indices=(1, 2, 3),
@@ -64,7 +64,7 @@ model = dict(
         dcn=dict(type='DCNv2', deform_groups=1, fallback_on_stride=False), 
         stage_with_dcn=(False, False, True, True)),
     img_neck=dict(
-        type='FPN',
+        type='FPN',    # https://github.com/open-mmlab/mmsegmentation/blob/master/mmseg/models/necks/fpn.py
         in_channels=[512, 1024, 2048],
         out_channels=_dim_,
         start_level=0,
