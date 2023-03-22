@@ -130,21 +130,21 @@ class TPVImageCrossAttention(BaseModule):
             for _, mask_per_img in enumerate(tpv_mask):
                 index_query_per_img = mask_per_img[0].sum(-1).nonzero().squeeze(-1)
                 indexes.append(index_query_per_img)
-            max_len = max([len(each) for each in indexes])
+            max_len = max([len(each) for each in indexes])   # find the max number of reference points
             max_lens.append(max_len)
             indexeses.append(indexes)
 
             reference_points_cam = reference_points_cams[tpv_idx]
             D = reference_points_cam.size(3)
 
-            queries_rebatch = queries[tpv_idx].new_zeros(
+            queries_rebatch = queries[tpv_idx].new_zeros(         #new empty query and reference points, num_cams is combined with bs
                 [bs * self.num_cams, max_len, self.embed_dims])
             reference_points_rebatch = reference_points_cam.new_zeros(
                 [bs * self.num_cams, max_len, D, 2])
 
             for i, reference_points_per_img in enumerate(reference_points_cam):
                 for j in range(bs):
-                    index_query_per_img = indexes[i]
+                    index_query_per_img = indexes[i]       #reassign query and refernce points with new shape
                     queries_rebatch[j * self.num_cams + i, :len(index_query_per_img)] = queries[tpv_idx][j, index_query_per_img]
                     reference_points_rebatch[j * self.num_cams + i, :len(index_query_per_img)] = reference_points_per_img[j, index_query_per_img]
             
@@ -158,7 +158,7 @@ class TPVImageCrossAttention(BaseModule):
         value = value.permute(0, 2, 1, 3).view(
             self.num_cams * bs, l, self.embed_dims)
 
-        queries = self.deformable_attention(
+        queries = self.deformable_attention(                  # get attention output
             query=queries_rebatches, key=key, value=value,
             reference_points=reference_points_rebatches, 
             spatial_shapes=spatial_shapes,
@@ -166,13 +166,13 @@ class TPVImageCrossAttention(BaseModule):
         
         for tpv_idx, indexes in enumerate(indexeses):
             for i, index_query_per_img in enumerate(indexes):
-                for j in range(bs):
+                for j in range(bs):                            #reshape output query
                     slots[tpv_idx][j, index_query_per_img] += queries[tpv_idx][j * self.num_cams + i, :len(index_query_per_img)]
 
             count = tpv_masks[tpv_idx].sum(-1) > 0
             count = count.permute(1, 2, 0).sum(-1)
             count = torch.clamp(count, min=1.0)
-            slots[tpv_idx] = slots[tpv_idx] / count[..., None]
+            slots[tpv_idx] = slots[tpv_idx] / count[..., None]     #devide by number of valid cameras (mean over cameras)
         slots = torch.cat(slots, dim=1)
         slots = self.output_proj(slots)
 
